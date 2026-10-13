@@ -1,0 +1,199 @@
+// Data model for the AI Exam Preparation Assistant.
+// Every learning object hangs off a Course, and every Course belongs to a User.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  courses      Course[]
+  attempts     QuizAttempt[]
+  sessions     StudySession[]
+}
+
+model Course {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  examDate    DateTime?
+  createdAt   DateTime      @default(now())
+  documents   Document[]
+  quizzes     Quiz[]
+  conversations Conversation[]
+  flashcards  Flashcard[]
+  plans       StudyPlan[]
+  sessions    StudySession[]
+
+  @@index([userId])
+}
+
+// Study material uploaded by the student (PDF or plain text), stored as extracted text.
+model Document {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  // AI study guide, generated on demand (see summarizeDocument in src/lib/ai.ts).
+  summary           String?
+  keyPoints         Json? // string[]
+  keyTerms          Json? // { term: string; definition: string }[]
+  simpleExplanation String?
+  summarizedAt      DateTime?
+
+  @@index([courseId])
+}
+
+model Quiz {
+  id         String        @id @default(cuid())
+  courseId   String
+  course     Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title      String
+  difficulty String // "easy" | "medium" | "hard"
+  mode       String        @default("practice") // "practice" | "exam"
+  timeLimit  Int? // minutes; set for timed mock exams
+  createdAt  DateTime      @default(now())
+  questions  Question[]
+  attempts   QuizAttempt[]
+
+  @@index([courseId])
+}
+
+model Question {
+  id          String          @id @default(cuid())
+  quizId      String
+  quiz        Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  position    Int
+  type        String // "mcq" | "short"
+  prompt      String
+  options     Json // string[] for mcq, [] for short answer
+  answer      String // mcq: index of the correct option; short: model answer
+  explanation String
+  topic       String
+  answers     AttemptAnswer[]
+}
+
+model QuizAttempt {
+  id        String          @id @default(cuid())
+  quizId    String
+  quiz      Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score       Float // 0..1
+  durationSec Int? // time taken, recorded for every attempt
+  createdAt   DateTime        @default(now())
+  answers   AttemptAnswer[]
+
+  @@index([quizId])
+  @@index([userId])
+}
+
+model AttemptAnswer {
+  id         String      @id @default(cuid())
+  attemptId  String
+  attempt    QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  response   String
+  correct    Boolean
+  feedback   String
+
+  @@index([attemptId])
+}
+
+// A saved tutor chat. The mode changes how the tutor responds (see TUTOR_MODES in src/lib/ai.ts).
+model Conversation {
+  id        String        @id @default(cuid())
+  courseId  String
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  mode      String        @default("explain")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+
+  @@index([courseId, updatedAt])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // "user" | "assistant"
+  content        String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+// Time spent studying: focus-timer sessions, quizzes, mock exams. Drives streaks and the weekly chart.
+model StudySession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String?
+  course    Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  kind      String // "focus" | "quiz" | "mock" | "flashcards"
+  minutes   Int
+  startedAt DateTime @default(now())
+
+  @@index([userId, startedAt])
+  @@index([courseId, startedAt])
+}
+
+// Spaced-repetition flashcard scheduled with the SM-2 algorithm (see src/lib/srs.ts).
+model Flashcard {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  front       String
+  back        String
+  topic       String
+  ease        Float    @default(2.5)
+  interval    Int      @default(0) // days
+  repetitions Int      @default(0)
+  dueAt       DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([courseId, dueAt])
+}
+
+model StudyPlan {
+  id        String      @id @default(cuid())
+  courseId  String
+  course    Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  summary   String
+  createdAt DateTime    @default(now())
+  tasks     StudyTask[]
+
+  @@index([courseId])
+}
+
+model StudyTask {
+  id      String    @id @default(cuid())
+  planId  String
+  plan    StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  date    DateTime
+  title   String
+  details String
+  topic   String
+  minutes Int
+  kind    String // "review" | "practice" | "flashcards" | "mock"
+  done    Boolean   @default(false)
+
+  @@index([planId, date])
+}

@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens only. Every component is styled with Tailwind utilities that read
+ * these tokens (bg-surface, text-muted, border-border, bg-accent, …).
+ * The palette borrows from the exam room: ballpoint ink on cool exam paper and a
+ * red pen for marking.
+ */
+:root {
+  --background: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #f0f2f8;
+  --foreground: #161a33;
+  --muted: #5a6075;
+  --border: #e2e5ee;
+  --accent: #3346d3;
+  --accent-hover: #2a3bb8;
+  --on-accent: #ffffff;
+  --accent-soft: #eef0fd;
+  --good: #12795a;
+  --good-soft: #e7f5ef;
+  --bad: #c8372d;
+  --bad-soft: #fcecea;
+  --warn: #9a6400;
+  --warn-soft: #fdf3dc;
+  --highlight: #fde68a;
+  --violet: #7b4fd1;
+  --ink: #161a33;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0e1022;
+    --surface: #161936;
+    --surface-2: #1f2347;
+    --foreground: #e9ebf5;
+    --muted: #9ca2bd;
+    --border: #2a2e50;
+    --accent: #8090ff;
+    --accent-hover: #97a4ff;
+    --on-accent: #0e1022;
+    --accent-soft: #1f2452;
+    --good: #45c496;
+    --good-soft: #12302a;
+    --bad: #f07468;
+    --bad-soft: #3a1c22;
+    --warn: #e7b24c;
+    --warn-soft: #33290f;
+    --highlight: #7a6418;
+    --violet: #b394ff;
+    --ink: #0b0d1c;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-highlight: var(--highlight);
+  --color-violet: var(--violet);
+  --color-ink: var(--ink);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+  --animate-pop-in: pop-in 140ms ease-out;
+  --animate-fade-up: fade-up 220ms ease-out both;
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--highlight);
+    color: var(--foreground);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
