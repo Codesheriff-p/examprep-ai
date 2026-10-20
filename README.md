@@ -73,18 +73,18 @@ Add a key and restart the server to switch to Claude; nothing else changes.
 
 ### Deploying to Vercel
 
-No setup needed: import the repo in Vercel and deploy. With no `DATABASE_URL` set, the app
-uses a **temporary SQLite database** in `/tmp` (the only writable folder on Vercel). On each
-server start, `src/instrumentation.ts` creates the tables and the demo account.
+Vercel runs the site on many server copies at once, so they need one shared database:
 
-This is meant for testing. Vercel wipes `/tmp` whenever a server instance restarts (after a
-period of inactivity or a redeploy), so accounts and data reset. If Vercel runs more than one
-instance at a time, they don't share data. Without `SESSION_SECRET`, sessions also end when
-the instance restarts.
+1. In the Vercel project: **Storage → Create Database → Turso** (free) and connect it to the
+   project. Vercel adds `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`, which the app reads automatically.
+2. Create the tables and the demo account once, from your machine:
+   `DATABASE_URL="libsql://…" DATABASE_AUTH_TOKEN="…" npm run db:deploy && npm run db:seed`
+   (same two values, inline so they override your local `.env`).
+3. Redeploy. No other settings are needed: without `SESSION_SECRET`, login cookies are signed
+   with a key derived from the database token.
 
-To keep data permanently, set `DATABASE_URL` (and `DATABASE_AUTH_TOKEN`) to a hosted libSQL
-database such as [Turso](https://turso.tech), create its tables with
-`DATABASE_URL="libsql://…" DATABASE_AUTH_TOKEN="…" npm run db:deploy`, and set `SESSION_SECRET`.
+Without any database settings the app still starts on Vercel, using a temporary SQLite file
+per server copy, but logins won't hold between copies. That mode is only a fallback.
 
 Other scripts: `npm run build`, `npm run lint`, `npm run typecheck`.
 

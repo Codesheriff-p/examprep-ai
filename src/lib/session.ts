@@ -7,21 +7,34 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 type SessionPayload = { userId: string; expiresAt: string };
 
-// On Vercel without SESSION_SECRET (a quick test deploy), sign cookies with a random key for
-// this server instance. Sessions then end when the instance restarts, just like the
-// temporary database (see src/lib/db.ts). Never a fixed fallback: anyone could forge cookies.
-const globalForSession = globalThis as unknown as { sessionSecret?: string };
+// Where the cookie-signing secret comes from, in order:
+// 1. SESSION_SECRET.
+// 2. Derived from the database auth token (DATABASE_AUTH_TOKEN / TURSO_AUTH_TOKEN). It's
+//    already a secret shared by every server copy, so a deploy with a hosted database needs
+//    no extra setting. Hashed with a label so the signing key never equals the token itself.
+// 3. On Vercel with neither (temporary database): a random key per server instance.
+//    Never a fixed fallback: anyone could forge cookies.
+const DB_TOKEN = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN;
+const globalForSession = globalThis as unknown as { sessionKey?: Promise<Uint8Array> };
 
 /** False when cookies are signed with a per-instance key the proxy can't share. */
-export const SESSION_SECRET_CONFIGURED = Boolean(process.env.SESSION_SECRET);
+export const SESSION_SECRET_CONFIGURED = Boolean(process.env.SESSION_SECRET || DB_TOKEN);
+
+async function deriveKey() {
+  if (process.env.SESSION_SECRET) return new TextEncoder().encode(process.env.SESSION_SECRET);
+  if (DB_TOKEN) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`examprep-session:${DB_TOKEN}`));
+    return new Uint8Array(digest);
+  }
+  if (process.env.VERCEL) return new TextEncoder().encode(crypto.randomUUID() + crypto.randomUUID());
+  throw new Error("SESSION_SECRET is not set. See .env.example.");
+}
 
 function key() {
-  let secret = process.env.SESSION_SECRET;
-  if (!secret && process.env.VERCEL) {
-    secret = globalForSession.sessionSecret ??= crypto.randomUUID() + crypto.randomUUID();
-  }
-  if (!secret) throw new Error("SESSION_SECRET is not set. See .env.example.");
-  return new TextEncoder().encode(secret);
+  return (globalForSession.sessionKey ??= deriveKey().catch((err) => {
+    globalForSession.sessionKey = undefined;
+    throw err;
+  }));
 }
 
 export async function encrypt(payload: SessionPayload) {
@@ -29,13 +42,15 @@ export async function encrypt(payload: SessionPayload) {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(key());
+    .sign(await key());
 }
 
 export async function decrypt(token: string | undefined): Promise<SessionPayload | null> {
   if (!token) return null;
+  // Outside the try: a missing secret is a setup error, not an invalid cookie.
+  const secret = await key();
   try {
-    const { payload } = await jwtVerify<SessionPayload>(token, key(), { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify<SessionPayload>(token, secret, { algorithms: ["HS256"] });
     return payload;
   } catch {
     return null;
