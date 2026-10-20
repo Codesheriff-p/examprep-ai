@@ -7,8 +7,19 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 type SessionPayload = { userId: string; expiresAt: string };
 
+// On Vercel without SESSION_SECRET (a quick test deploy), sign cookies with a random key for
+// this server instance. Sessions then end when the instance restarts, just like the
+// temporary database (see src/lib/db.ts). Never a fixed fallback: anyone could forge cookies.
+const globalForSession = globalThis as unknown as { sessionSecret?: string };
+
+/** False when cookies are signed with a per-instance key the proxy can't share. */
+export const SESSION_SECRET_CONFIGURED = Boolean(process.env.SESSION_SECRET);
+
 function key() {
-  const secret = process.env.SESSION_SECRET;
+  let secret = process.env.SESSION_SECRET;
+  if (!secret && process.env.VERCEL) {
+    secret = globalForSession.sessionSecret ??= crypto.randomUUID() + crypto.randomUUID();
+  }
   if (!secret) throw new Error("SESSION_SECRET is not set. See .env.example.");
   return new TextEncoder().encode(secret);
 }
@@ -52,6 +63,11 @@ export async function deleteSession() {
 export async function readSession() {
   const store = await cookies();
   return decrypt(store.get(COOKIE)?.value);
+}
+
+/** Whether the request carries a session cookie at all, valid or not. */
+export async function hasSessionCookie() {
+  return (await cookies()).has(COOKIE);
 }
 
 export const SESSION_COOKIE = COOKIE;

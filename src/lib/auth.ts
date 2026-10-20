@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { readSession } from "@/lib/session";
+import { hasSessionCookie, readSession } from "@/lib/session";
 
 /** The signed-in user, or null. Memoised per request. */
 export const getCurrentUser = cache(async () => {
@@ -16,12 +16,13 @@ export const getCurrentUser = cache(async () => {
 
 /**
  * The signed-in user; redirects to /login when there is none.
- * A cookie can outlive its account (e.g. after the database is reset or re-seeded). The
- * proxy would then bounce /login back here forever, so stale cookies are cleared first.
+ * A cookie can outlive its account (e.g. after the database is reset or re-seeded) or its
+ * signing key. The proxy would then bounce /login back here forever, so any cookie that
+ * didn't yield a user is cleared first.
  */
 export async function requireUser() {
   const user = await getCurrentUser();
-  if (!user) redirect((await readSession()) ? "/auth/signout" : "/login");
+  if (!user) redirect((await hasSessionCookie()) ? "/auth/signout" : "/login");
   return user;
 }
 

@@ -73,18 +73,18 @@ Add a key and restart the server to switch to Claude; nothing else changes.
 
 ### Deploying to Vercel
 
-Vercel has no persistent disk, so a local SQLite file can't store accounts or data there. Use a
-free hosted [Turso](https://turso.tech) database, which speaks the same libSQL protocol:
+No setup needed: import the repo in Vercel and deploy. With no `DATABASE_URL` set, the app
+uses a **temporary SQLite database** in `/tmp` (the only writable folder on Vercel). On each
+server start, `src/instrumentation.ts` creates the tables and the demo account.
 
-1. Create a Turso database, then copy its URL (`libsql://…`) and an auth token.
-2. Create the tables in it from your machine:
-   `DATABASE_URL="libsql://…" DATABASE_AUTH_TOKEN="…" npm run db:deploy`
-   (optional: run `npm run db:seed` the same way for the demo account).
-3. In Vercel → Project → Settings → Environment Variables, add `DATABASE_URL`,
-   `DATABASE_AUTH_TOKEN` and `SESSION_SECRET` (and `ANTHROPIC_API_KEY` if you have one), then redeploy.
+This is meant for testing. Vercel wipes `/tmp` whenever a server instance restarts (after a
+period of inactivity or a redeploy), so accounts and data reset. If Vercel runs more than one
+instance at a time, they don't share data. Without `SESSION_SECRET`, sessions also end when
+the instance restarts.
 
-`npm run db:deploy` applies `prisma/migrations` to any libSQL database and skips migrations
-that were already applied, so re-run it after adding a migration.
+To keep data permanently, set `DATABASE_URL` (and `DATABASE_AUTH_TOKEN`) to a hosted libSQL
+database such as [Turso](https://turso.tech), create its tables with
+`DATABASE_URL="libsql://…" DATABASE_AUTH_TOKEN="…" npm run db:deploy`, and set `SESSION_SECRET`.
 
 Other scripts: `npm run build`, `npm run lint`, `npm run typecheck`.
 
