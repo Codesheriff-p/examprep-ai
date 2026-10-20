@@ -53,7 +53,8 @@ Re-running the seed resets the demo account.
 | Variable | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude API key (optional: leave empty for offline mode) |
-| `DATABASE_URL` | SQLite file, e.g. `file:./dev.db` |
+| `DATABASE_URL` | SQLite file, e.g. `file:./dev.db`, or a Turso URL `libsql://…` |
+| `DATABASE_AUTH_TOKEN` | Turso auth token (hosted database only) |
 | `SESSION_SECRET` | Random string for signing session cookies (`openssl rand -base64 32`) |
 
 ### Offline mode
@@ -69,6 +70,21 @@ Without `ANTHROPIC_API_KEY`, every AI feature still works using the offline engi
 - **Tutor**: answers from the most relevant sentences in the notes in every mode, including a scored "Quiz me" and a hinting Socratic mode.
 
 Add a key and restart the server to switch to Claude; nothing else changes.
+
+### Deploying to Vercel
+
+Vercel has no persistent disk, so a local SQLite file can't store accounts or data there. Use a
+free hosted [Turso](https://turso.tech) database, which speaks the same libSQL protocol:
+
+1. Create a Turso database, then copy its URL (`libsql://…`) and an auth token.
+2. Create the tables in it from your machine:
+   `DATABASE_URL="libsql://…" DATABASE_AUTH_TOKEN="…" npm run db:deploy`
+   (optional: run `npm run db:seed` the same way for the demo account).
+3. In Vercel → Project → Settings → Environment Variables, add `DATABASE_URL`,
+   `DATABASE_AUTH_TOKEN` and `SESSION_SECRET` (and `ANTHROPIC_API_KEY` if you have one), then redeploy.
+
+`npm run db:deploy` applies `prisma/migrations` to any libSQL database and skips migrations
+that were already applied, so re-run it after adding a migration.
 
 Other scripts: `npm run build`, `npm run lint`, `npm run typecheck`.
 

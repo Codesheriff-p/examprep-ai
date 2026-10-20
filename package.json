@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "typecheck": "tsc --noEmit",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:deploy": "tsx prisma/deploy.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",

@@ -12,7 +12,11 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import demo from "../src/lib/demo-account.json";
 
 const db = new PrismaClient({
-  adapter: new PrismaLibSql({ url: process.env.DATABASE_URL ?? "file:./dev.db" }),
+  adapter: new PrismaLibSql({
+    url: process.env.DATABASE_URL ?? "file:./dev.db",
+    // Only needed for a hosted Turso database (libsql://…); ignored for local files.
+    authToken: process.env.DATABASE_AUTH_TOKEN,
+  }),
 });
 
 const DAY = 86_400_000;

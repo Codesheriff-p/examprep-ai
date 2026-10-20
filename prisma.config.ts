@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -7,7 +7,9 @@ export default defineConfig({
     path: "prisma/migrations",
     seed: "tsx prisma/seed.ts",
   },
+  // `prisma generate` doesn't need a database, so a missing DATABASE_URL (e.g. during
+  // `npm install` on Vercel) mustn't fail. Hosted databases are migrated with `npm run db:deploy`.
   datasource: {
-    url: env("DATABASE_URL"),
+    url: process.env.DATABASE_URL ?? "file:./dev.db",
   },
 });
