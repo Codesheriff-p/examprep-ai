@@ -6,14 +6,15 @@
  * Run with: npm run db:seed   (safe to re-run; it rebuilds the demo account)
  */
 import "dotenv/config";
+import { DATABASE_AUTH_TOKEN, DATABASE_URL } from "../src/lib/db-config";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { seedDemoAccount } from "../src/lib/demo-seed";
 
 const db = new PrismaClient({
   adapter: new PrismaLibSql({
-    url: process.env.DATABASE_URL ?? "file:./dev.db",
-    authToken: process.env.DATABASE_AUTH_TOKEN,
+    url: DATABASE_URL,
+    authToken: DATABASE_AUTH_TOKEN,
   }),
 });
 

@@ -5,12 +5,13 @@
  * Run with: npm run db:deploy   (safe to re-run; applied migrations are skipped)
  */
 import "dotenv/config";
+import { DATABASE_AUTH_TOKEN, DATABASE_URL } from "../src/lib/db-config";
 import { createClient } from "@libsql/client";
 import { applyMigrations } from "../src/lib/apply-migrations";
 import { MIGRATIONS } from "../src/generated/migrations";
 
-const url = process.env.DATABASE_URL ?? "file:./dev.db";
-const db = createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN });
+const url = DATABASE_URL;
+const db = createClient({ url, authToken: DATABASE_AUTH_TOKEN });
 
 applyMigrations(db, MIGRATIONS)
   .then((applied) =>
